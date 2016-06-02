@@ -15,7 +15,6 @@ if 'debian' == node['platform_family']
     apt.run_action(:run)
   end
 end
-
 case node['platform_family']
 when 'debian'
 
@@ -35,6 +34,7 @@ end
 remote_file '/usr/share/minecraft/minecraft_server.jar' do
   source "https://s3.amazonaws.com/Minecraft.Download/versions/#{node['minecraft_basic']['version']}/minecraft_server.#{node['minecraft_basic']['version']}.jar"
   mode '0755'
+  notifies :restart, 'service[minecraft-server]'
 end
 
 bash 'get the eula made' do
@@ -62,6 +62,13 @@ template '/usr/share/minecraft/server.properties' do
   mode '0644'
 end
 
+template '/usr/share/minecraft/ops.txt' do
+  source 'ops.txt.erb'
+  owner 'root'
+  group 'root'
+  mode '0644'
+end
+
 case node['platform_family']
 when 'debian'
 
@@ -74,19 +81,19 @@ when 'debian'
 
   execute 'sudo initctl reload-configuration'
 
-  execute 'sudo start minecraft-server'
-
 when 'rhel', 'fedora'
 
-  template '/usr/lib/systemd/system/minecraft.service' do
+  template '/usr/lib/systemd/system/minecraft-server.service' do
     source 'minecraft-server.service.erb'
     owner 'root'
     group 'root'
     mode '0644'
   end
 
-  execute 'sudo systemctl enable minecraft'
-
-  execute 'sudo systemctl start minecraft'
-
 end
+
+service 'minecraft-server' do
+  action [:enable, :start]
+end
+
+include_recipe "minecraft-basic::map"
